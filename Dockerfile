@@ -15,7 +15,4 @@ WORKDIR /app
 
 COPY --from=build /app/target/*.jar app.jar
 
-ENTRYPOINT ["java",
- "-Djava.library.path=/opt/nfast/toolkits/pkcs11",
- "-jar",
- "app.jar"]
+ENTRYPOINT ["java","-Djava.library.path=/opt/nfast/toolkits/pkcs11","-jar","app.jar"]
