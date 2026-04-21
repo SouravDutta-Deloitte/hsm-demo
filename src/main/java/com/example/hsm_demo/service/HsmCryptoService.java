@@ -16,15 +16,6 @@ import org.springframework.stereotype.Service;
 import com.example.hsm_demo.configs.Pkcs11ConfigLoader;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PostConstruct;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import java.security.*;
-import java.util.Base64;
-import java.util.Enumeration;
 
 @Service
 public class HsmCryptoService {
@@ -40,7 +31,10 @@ public class HsmCryptoService {
 		try {
 			String cfg = Pkcs11ConfigLoader.loadConfig();
 
-			provider = new sun.security.pkcs11.SunPKCS11(cfg);
+			// ✅ CORRECT WAY (NO sun.security.pkcs11)
+			Provider pkcs11Provider = Security.getProvider("SunPKCS11");
+			provider = pkcs11Provider.configure(cfg);
+
 			Security.addProvider(provider);
 
 			keyStore = KeyStore.getInstance("PKCS11", provider);
@@ -82,20 +76,16 @@ public class HsmCryptoService {
 		return Base64.getEncoder().encodeToString(enc);
 	}
 
-	public String decrypt(String alias, String encData) throws Exception {
+	public String decrypt(String alias, String enc) throws Exception {
 
 		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-		byte[] iv = new byte[12]; // demo only (store IV properly in real app)
+		byte[] iv = new byte[12];
 
 		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
 
-		GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+		cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, iv));
 
-		cipher.init(Cipher.DECRYPT_MODE, key, spec);
-
-		byte[] dec = cipher.doFinal(Base64.getDecoder().decode(encData));
-
-		return new String(dec);
+		return new String(cipher.doFinal(Base64.getDecoder().decode(enc)));
 	}
 }
