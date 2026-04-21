@@ -9,74 +9,93 @@ import java.util.Enumeration;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.GCMParameterSpec;
 
 import org.springframework.stereotype.Service;
 
+import com.example.hsm_demo.configs.Pkcs11ConfigLoader;
+
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
+import org.springframework.stereotype.Service;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import java.security.*;
+import java.util.Base64;
+import java.util.Enumeration;
 
 @Service
 public class HsmCryptoService {
 
-	private KeyStore keyStore;
 	private Provider provider;
+	private KeyStore keyStore;
 
-	private final String PIN = "Yotta123";
+	private static final String PIN = "Yotta123";
 
 	@PostConstruct
-	public void init() throws Exception {
+	public void init() {
 
-		provider = Security.getProvider("SunPKCS11").configure("src/main/resources/hsm/pkcs11.cfg");
+		try {
+			String cfg = Pkcs11ConfigLoader.loadConfig();
 
-		Security.addProvider(provider);
+			provider = new sun.security.pkcs11.SunPKCS11(cfg);
+			Security.addProvider(provider);
 
-		keyStore = KeyStore.getInstance("PKCS11", provider);
-		keyStore.load(null, PIN.toCharArray());
+			keyStore = KeyStore.getInstance("PKCS11", provider);
+			keyStore.load(null, PIN.toCharArray());
+
+			System.out.println("HSM Provider Loaded: " + provider.getName());
+
+		} catch (Exception e) {
+			throw new RuntimeException("HSM init failed", e);
+		}
 	}
 
-	public String encrypt(String plainText) throws Exception {
+	public void listKeys() throws Exception {
 
-		SecretKey key = getKey("java_aes_key");
+		System.out.println("---- HSM KEYS ----");
 
-		byte[] iv = new byte[16];
+		Enumeration<String> e = keyStore.aliases();
+
+		while (e.hasMoreElements()) {
+			System.out.println("Key: " + e.nextElement());
+		}
+	}
+
+	public String encrypt(String alias, String data) throws Exception {
+
+		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
+
+		byte[] iv = new byte[12];
 		new SecureRandom().nextBytes(iv);
 
-		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
 
-		cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
+		GCMParameterSpec spec = new GCMParameterSpec(128, iv);
 
-		byte[] encrypted = cipher.doFinal(plainText.getBytes());
+		cipher.init(Cipher.ENCRYPT_MODE, key, spec);
 
-		return Base64.getEncoder().encodeToString(iv) + ":" + Base64.getEncoder().encodeToString(encrypted);
+		byte[] enc = cipher.doFinal(data.getBytes());
+
+		return Base64.getEncoder().encodeToString(enc);
 	}
 
-	public String decrypt(String input) throws Exception {
+	public String decrypt(String alias, String encData) throws Exception {
 
-		String[] parts = input.split(":");
+		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-		byte[] iv = Base64.getDecoder().decode(parts[0]);
-		byte[] data = Base64.getDecoder().decode(parts[1]);
+		byte[] iv = new byte[12]; // demo only (store IV properly in real app)
 
-		SecretKey key = getKey("java_aes_key");
+		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
 
-		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+		GCMParameterSpec spec = new GCMParameterSpec(128, iv);
 
-		cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
+		cipher.init(Cipher.DECRYPT_MODE, key, spec);
 
-		return new String(cipher.doFinal(data));
-	}
+		byte[] dec = cipher.doFinal(Base64.getDecoder().decode(encData));
 
-	private SecretKey getKey(String alias) throws Exception {
-
-		Enumeration<String> aliases = keyStore.aliases();
-
-		while (aliases.hasMoreElements()) {
-			String a = aliases.nextElement();
-			if (a.equals(alias)) {
-				return (SecretKey) keyStore.getKey(a, PIN.toCharArray());
-			}
-		}
-
-		throw new RuntimeException("HSM key not found: " + alias);
+		return new String(dec);
 	}
 }
