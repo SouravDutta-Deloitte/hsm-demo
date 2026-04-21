@@ -26,7 +26,7 @@ public class HsmCryptoService {
 	@PostConstruct
 	public void init() throws Exception {
 
-		provider = Security.getProvider("SunPKCS11").configure("pkcs11.cfg");
+		provider = Security.getProvider("SunPKCS11").configure("src/main/resources/hsm/pkcs11.cfg");
 
 		Security.addProvider(provider);
 
