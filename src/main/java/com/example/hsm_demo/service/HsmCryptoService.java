@@ -61,32 +61,39 @@ public class HsmCryptoService {
 
 	public String encrypt(String alias, String data) throws Exception {
 
-		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
+	    SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-		byte[] iv = new byte[16];
-		new SecureRandom().nextBytes(iv);
+	    byte[] iv = new byte[16];
+	    new SecureRandom().nextBytes(iv);
 
-		IvParameterSpec spec = new IvParameterSpec(iv);
+	    IvParameterSpec spec = new IvParameterSpec(iv);
 
-		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
+	    Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 
-		cipher.init(Cipher.ENCRYPT_MODE, key, spec);
+	    cipher.init(Cipher.ENCRYPT_MODE, key, spec);
 
-		byte[] enc = cipher.doFinal(data.getBytes());
+	    byte[] enc = cipher.doFinal(data.getBytes());
 
-		return Base64.getEncoder().encodeToString(enc);
+	    // IMPORTANT: return IV + ciphertext together
+	    return Base64.getEncoder().encodeToString(iv) + ":" +
+	           Base64.getEncoder().encodeToString(enc);
 	}
 
 	public String decrypt(String alias, String enc) throws Exception {
 
-		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
+	    SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-		byte[] iv = new byte[12];
+	    String[] parts = enc.split(":");
 
-		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
+	    byte[] iv = Base64.getDecoder().decode(parts[0]);
+	    byte[] cipherText = Base64.getDecoder().decode(parts[1]);
 
-		cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, iv));
+	    IvParameterSpec spec = new IvParameterSpec(iv);
 
-		return new String(cipher.doFinal(Base64.getDecoder().decode(enc)));
+	    Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
+
+	    cipher.init(Cipher.DECRYPT_MODE, key, spec);
+
+	    return new String(cipher.doFinal(cipherText));
 	}
 }

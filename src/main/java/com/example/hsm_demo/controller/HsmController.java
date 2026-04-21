@@ -26,11 +26,11 @@ public class HsmController {
 
 	@PostMapping("/encrypt")
 	public String encrypt(@RequestParam String alias, @RequestParam String data) throws Exception {
-		return service.encrypt(alias, data);
+		return service.encrypt(alias, data) + "\n";
 	}
 
 	@PostMapping("/decrypt")
 	public String decrypt(@RequestParam String alias, @RequestParam String data) throws Exception {
-		return service.decrypt(alias, data);
+		return service.decrypt(alias, data) + "\n";
 	}
 }
