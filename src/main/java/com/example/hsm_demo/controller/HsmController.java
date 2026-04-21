@@ -1,11 +1,17 @@
 package com.example.hsm_demo.controller;
 
+import java.util.Set;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.hsm_demo.models.DecryptRequest;
+import com.example.hsm_demo.models.DecryptResponse;
+import com.example.hsm_demo.models.EncryptRequest;
+import com.example.hsm_demo.models.EncryptResponse;
 import com.example.hsm_demo.service.HsmCryptoService;
 
 @RestController
@@ -19,18 +25,17 @@ public class HsmController {
 	}
 
 	@GetMapping("/keys")
-	public String keys() throws Exception {
-		service.listKeys();
-		return "Keys printed in logs";
+	public Set<String> keys() throws Exception {
+		return service.listKeys();
 	}
 
 	@PostMapping("/encrypt")
-	public String encrypt(@RequestParam String alias, @RequestParam String data) throws Exception {
-		return service.encrypt(alias, data) + "\n";
+	public EncryptResponse encrypt(@RequestBody EncryptRequest encryptRequest) throws Exception {
+		return service.encrypt(encryptRequest);
 	}
 
 	@PostMapping("/decrypt")
-	public String decrypt(@RequestParam String alias, @RequestParam String data) throws Exception {
-		return service.decrypt(alias, data) + "\n";
+	public DecryptResponse decrypt(@RequestBody DecryptRequest decryptRequest) throws Exception {
+		return service.decrypt(decryptRequest);
 	}
 }

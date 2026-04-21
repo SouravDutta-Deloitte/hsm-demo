@@ -6,15 +6,20 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Base64;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.springframework.stereotype.Service;
 
 import com.example.hsm_demo.configs.Pkcs11ConfigLoader;
+import com.example.hsm_demo.models.DecryptRequest;
+import com.example.hsm_demo.models.DecryptResponse;
+import com.example.hsm_demo.models.EncryptRequest;
+import com.example.hsm_demo.models.EncryptResponse;
 
 import jakarta.annotation.PostConstruct;
 
@@ -48,52 +53,67 @@ public class HsmCryptoService {
 		}
 	}
 
-	public void listKeys() throws Exception {
+	public Set<String> listKeys() throws Exception {
 
-		System.out.println("---- HSM KEYS ----");
+		Enumeration<String> keyAliases = keyStore.aliases();
 
-		Enumeration<String> e = keyStore.aliases();
+		Set<String> keys = new HashSet<>();
 
-		while (e.hasMoreElements()) {
-			System.out.println("Key: " + e.nextElement());
+		while (keyAliases.hasMoreElements()) {
+			String alias = keyAliases.nextElement();
+			keys.add(alias);
 		}
+
+		return keys;
 	}
 
-	public String encrypt(String alias, String data) throws Exception {
+	public EncryptResponse encrypt(EncryptRequest encryptRequest) throws Exception {
 
-	    SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
+		String alias = encryptRequest.getKeyAlias();
 
-	    byte[] iv = new byte[16];
-	    new SecureRandom().nextBytes(iv);
+		String data = encryptRequest.getData();
 
-	    IvParameterSpec spec = new IvParameterSpec(iv);
+		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-	    Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
+		byte[] iv = new byte[16];
+		new SecureRandom().nextBytes(iv);
 
-	    cipher.init(Cipher.ENCRYPT_MODE, key, spec);
+		IvParameterSpec spec = new IvParameterSpec(iv);
 
-	    byte[] enc = cipher.doFinal(data.getBytes());
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 
-	    // IMPORTANT: return IV + ciphertext together
-	    return Base64.getEncoder().encodeToString(iv) + ":" +
-	           Base64.getEncoder().encodeToString(enc);
+		cipher.init(Cipher.ENCRYPT_MODE, key, spec);
+
+		byte[] enc = cipher.doFinal(data.getBytes());
+
+		// IMPORTANT: return IV + ciphertext together
+		EncryptResponse response = new EncryptResponse();
+
+		response.setEncryptedValue(Base64.getEncoder().encodeToString(enc));
+		response.setIvBase64Value(Base64.getEncoder().encodeToString(iv));
+
+		return response;
 	}
 
-	public String decrypt(String alias, String enc) throws Exception {
+	public DecryptResponse decrypt(DecryptRequest decryptRequest) throws Exception {
 
-	    SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
+		String alias = decryptRequest.getKeyAlias();
+		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-	    String[] parts = enc.split(":");
+		byte[] iv = Base64.getDecoder().decode(decryptRequest.getIvBase64Value());
+		byte[] cipherText = Base64.getDecoder().decode(decryptRequest.getEncryptedValue());
 
-	    byte[] iv = Base64.getDecoder().decode(parts[0]);
-	    byte[] cipherText = Base64.getDecoder().decode(parts[1]);
+		IvParameterSpec spec = new IvParameterSpec(iv);
 
-	    IvParameterSpec spec = new IvParameterSpec(iv);
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 
-	    Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
+		cipher.init(Cipher.DECRYPT_MODE, key, spec);
 
-	    cipher.init(Cipher.DECRYPT_MODE, key, spec);
+		DecryptResponse response = new DecryptResponse();
 
-	    return new String(cipher.doFinal(cipherText));
+		response.setData(new String(cipher.doFinal(cipherText)));
+
+		return response;
 	}
+
 }
