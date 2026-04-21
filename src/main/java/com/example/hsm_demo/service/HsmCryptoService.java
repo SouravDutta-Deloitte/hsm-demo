@@ -10,6 +10,7 @@ import java.util.Enumeration;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 
 import org.springframework.stereotype.Service;
 
@@ -62,12 +63,12 @@ public class HsmCryptoService {
 
 		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
 
-		byte[] iv = new byte[12];
+		byte[] iv = new byte[16];
 		new SecureRandom().nextBytes(iv);
 
-		Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", provider);
+		IvParameterSpec spec = new IvParameterSpec(iv);
 
-		GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 
 		cipher.init(Cipher.ENCRYPT_MODE, key, spec);
 
