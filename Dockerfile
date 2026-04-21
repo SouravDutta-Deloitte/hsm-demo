@@ -1,4 +1,3 @@
-# ---------- BUILD STAGE ----------
 FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /app
@@ -8,8 +7,8 @@ COPY src ./src
 
 RUN mvn clean package -DskipTests
 
-# ---------- RUNTIME STAGE ----------
-FROM openjdk:17-jdk-slim
+
+FROM eclipse-temurin:17-jdk
 
 WORKDIR /app
 
