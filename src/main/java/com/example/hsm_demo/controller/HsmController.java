@@ -26,7 +26,7 @@ public class HsmController {
 		this.service = service;
 	}
 
-	@PostMapping("/rotate")
+	@PostMapping("/rotate-key")
 	public Map<String, String> rotate(@RequestParam String newAlias) {
 		return service.rotateKey(newAlias);
 	}
