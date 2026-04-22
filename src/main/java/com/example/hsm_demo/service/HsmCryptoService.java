@@ -13,6 +13,7 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.example.hsm_demo.configs.Pkcs11ConfigLoader;
@@ -25,6 +26,9 @@ import jakarta.annotation.PostConstruct;
 
 @Service
 public class HsmCryptoService {
+
+	@Value("${hsm.active-key.alias}")
+	private String activeHsmKeyAlias;
 
 	private Provider provider;
 	private KeyStore keyStore;
@@ -69,11 +73,9 @@ public class HsmCryptoService {
 
 	public EncryptResponse encrypt(EncryptRequest encryptRequest) throws Exception {
 
-		String alias = encryptRequest.getKeyAlias();
-
 		String data = encryptRequest.getData();
 
-		SecretKey key = (SecretKey) keyStore.getKey(alias, PIN.toCharArray());
+		SecretKey key = (SecretKey) keyStore.getKey(activeHsmKeyAlias, PIN.toCharArray());
 
 		byte[] iv = new byte[16];
 		new SecureRandom().nextBytes(iv);
