@@ -93,6 +93,7 @@ public class HsmCryptoService {
 
 		response.setEncryptedValue(Base64.getEncoder().encodeToString(enc));
 		response.setIvBase64Value(Base64.getEncoder().encodeToString(iv));
+		response.setKeyAlias(activeHsmKeyAlias);
 
 		return response;
 	}

@@ -6,6 +6,16 @@ public class EncryptResponse {
 
 	private String encryptedValue;
 
+	private String keyAlias;
+
+	public String getKeyAlias() {
+		return keyAlias;
+	}
+
+	public void setKeyAlias(String keyAlias) {
+		this.keyAlias = keyAlias;
+	}
+
 	public String getIvBase64Value() {
 		return ivBase64Value;
 	}
