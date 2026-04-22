@@ -6,14 +6,15 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Base64;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.example.hsm_demo.configs.Pkcs11ConfigLoader;
@@ -27,8 +28,7 @@ import jakarta.annotation.PostConstruct;
 @Service
 public class HsmCryptoService {
 
-	@Value("${hsm.active-key.alias}")
-	private String activeHsmKeyAlias;
+	private volatile String activeKeyAlias = "";
 
 	private Provider provider;
 	private KeyStore keyStore;
@@ -57,6 +57,17 @@ public class HsmCryptoService {
 		}
 	}
 
+	public Map<String, String> rotateKey(String newAlias) {
+
+		this.activeKeyAlias = newAlias;
+
+		Map<String, String> response = new HashMap<>();
+		response.put("activeKey", activeKeyAlias);
+		response.put("message", "Key rotated successfully");
+
+		return response;
+	}
+
 	public Set<String> listKeys() throws Exception {
 
 		Enumeration<String> keyAliases = keyStore.aliases();
@@ -75,7 +86,7 @@ public class HsmCryptoService {
 
 		String data = encryptRequest.getData();
 
-		SecretKey key = (SecretKey) keyStore.getKey(activeHsmKeyAlias, PIN.toCharArray());
+		SecretKey key = (SecretKey) keyStore.getKey(this.activeKeyAlias, PIN.toCharArray());
 
 		byte[] iv = new byte[16];
 		new SecureRandom().nextBytes(iv);
@@ -93,7 +104,7 @@ public class HsmCryptoService {
 
 		response.setEncryptedValue(Base64.getEncoder().encodeToString(enc));
 		response.setIvBase64Value(Base64.getEncoder().encodeToString(iv));
-		response.setKeyAlias(activeHsmKeyAlias);
+		response.setKeyAlias(this.activeKeyAlias);
 
 		return response;
 	}
