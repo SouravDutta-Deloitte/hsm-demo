@@ -28,7 +28,7 @@ import jakarta.annotation.PostConstruct;
 @Service
 public class HsmCryptoService {
 
-	private volatile String activeKeyAlias = "";
+	private volatile String activeKeyAlias = "adv_aes_v1";
 
 	private Provider provider;
 	private KeyStore keyStore;
@@ -41,7 +41,6 @@ public class HsmCryptoService {
 		try {
 			String cfg = Pkcs11ConfigLoader.loadConfig();
 
-			// ✅ CORRECT WAY (NO sun.security.pkcs11)
 			Provider pkcs11Provider = Security.getProvider("SunPKCS11");
 			provider = pkcs11Provider.configure(cfg);
 
@@ -99,9 +98,7 @@ public class HsmCryptoService {
 
 		byte[] enc = cipher.doFinal(data.getBytes());
 
-		// IMPORTANT: return IV + ciphertext together
 		EncryptResponse response = new EncryptResponse();
-
 		response.setEncryptedValue(Base64.getEncoder().encodeToString(enc));
 		response.setIvBase64Value(Base64.getEncoder().encodeToString(iv));
 		response.setKeyAlias(this.activeKeyAlias);
@@ -124,7 +121,6 @@ public class HsmCryptoService {
 		cipher.init(Cipher.DECRYPT_MODE, key, spec);
 
 		DecryptResponse response = new DecryptResponse();
-
 		response.setData(new String(cipher.doFinal(cipherText)));
 
 		return response;
